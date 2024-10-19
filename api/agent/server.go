@@ -46,6 +46,15 @@ type hclPluginConfig struct {
 	Enabled        *bool    `hcl:"enabled"`
 }
 
+type SelectorUpdateRequest struct {
+    ID       string     `json:"id"`
+    Selector Selector   `json:"selector"`
+}
+
+type SelectorDeleteRequest struct {
+    ID string `json:"id"`
+}
+
 func cors(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json;charset=UTF-8")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -170,6 +179,42 @@ func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	http.FileServer(http.Dir(h.staticPath)).ServeHTTP(w, r)
 }
 
+func (s *Server) tornjakSelectorsEdit(w http.ResponseWriter, r *http.Request) {
+    var updateReq SelectorUpdateRequest
+    if err := json.NewDecoder(r.Body).Decode(&updateReq); err != nil {
+        retError(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    err := s.Db.UpdateSelector(updateReq.ID, updateReq.Selector)
+    if err != nil {
+        retError(w, fmt.Sprintf("Error updating selector: %v", err), http.StatusInternalServerError)
+        return
+    }
+
+    cors(w, r)
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Selector updated successfully"))
+}
+
+func (s *Server) tornjakSelectorsDelete(w http.ResponseWriter, r *http.Request) {
+    var deleteReq SelectorDeleteRequest
+    if err := json.NewDecoder(r.Body).Decode(&deleteReq); err != nil {
+        retError(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    err := s.Db.DeleteSelector(deleteReq.ID)
+    if err != nil {
+        retError(w, fmt.Sprintf("Error deleting selector: %v", err), http.StatusInternalServerError)
+        return
+    }
+
+    cors(w, r)
+    w.WriteHeader(http.StatusOK)
+    w.Write([]byte("Selector deleted successfully"))
+}
+
 func (s *Server) GetRouter() http.Handler {
 	rtr := mux.NewRouter()
 
@@ -203,6 +248,11 @@ func (s *Server) GetRouter() http.Handler {
 	apiRtr.HandleFunc("/api/tornjak/selectors/register", s.tornjakPluginDefine)
 	apiRtr.HandleFunc("/api/tornjak/selectors/list", s.tornjakSelectorsList)
 	apiRtr.HandleFunc("/api/tornjak/agents/list", s.tornjakAgentsList)
+	
+	// Add PATCH and DELETE
+	apiRtr.HandleFunc("/api/v1/tornjak/selectors", s.tornjakSelectorsEdit).Methods(http.MethodPatch, http.MethodOptions)
+	apiRtr.HandleFunc("/api/v1/tornjak/selectors", s.tornjakSelectorsDelete).Methods(http.MethodDelete, http.MethodOptions)
+
 	// Clusters
 	apiRtr.HandleFunc("/api/tornjak/clusters/list", s.clusterList)
 	apiRtr.HandleFunc("/api/tornjak/clusters/create", s.clusterCreate)
