@@ -248,11 +248,6 @@ func (s *Server) GetRouter() http.Handler {
 	apiRtr.HandleFunc("/api/tornjak/selectors/register", s.tornjakPluginDefine)
 	apiRtr.HandleFunc("/api/tornjak/selectors/list", s.tornjakSelectorsList)
 	apiRtr.HandleFunc("/api/tornjak/agents/list", s.tornjakAgentsList)
-	
-	// Add PATCH and DELETE
-	apiRtr.HandleFunc("/api/v1/tornjak/selectors", s.tornjakSelectorsEdit).Methods(http.MethodPatch, http.MethodOptions)
-	apiRtr.HandleFunc("/api/v1/tornjak/selectors", s.tornjakSelectorsDelete).Methods(http.MethodDelete, http.MethodOptions)
-
 	// Clusters
 	apiRtr.HandleFunc("/api/tornjak/clusters/list", s.clusterList)
 	apiRtr.HandleFunc("/api/tornjak/clusters/create", s.clusterCreate)
@@ -262,18 +257,26 @@ func (s *Server) GetRouter() http.Handler {
 	// Spire APIs with versioning
 	apiRtr.HandleFunc("/api/v1/spire/serverinfo", s.debugServer).Methods(http.MethodGet, http.MethodOptions)
 	apiRtr.HandleFunc("/api/v1/spire/healthcheck", s.healthcheck).Methods(http.MethodGet, http.MethodOptions)
+
+	// SPIRE server Agents
 	apiRtr.HandleFunc("/api/v1/spire/agents", s.agentList).Methods(http.MethodGet, http.MethodOptions)
 	apiRtr.HandleFunc("/api/v1/spire/agents/ban", s.agentBan).Methods(http.MethodPost, http.MethodOptions)
 	apiRtr.HandleFunc("/api/v1/spire/agents", s.agentDelete).Methods(http.MethodDelete, http.MethodOptions)
 	apiRtr.HandleFunc("/api/v1/spire/agents/jointoken", s.agentCreateJoinToken).Methods(http.MethodPost, http.MethodOptions)
+
+	// SPIRE server entries
 	apiRtr.HandleFunc("/api/v1/spire/entries", s.entryList).Methods(http.MethodGet, http.MethodOptions)
 	apiRtr.HandleFunc("/api/v1/spire/entries", s.entryCreate).Methods(http.MethodPost)
 	apiRtr.HandleFunc("/api/v1/spire/entries", s.entryDelete).Methods(http.MethodDelete)
+	
+	// SPIRE server bundles
 	apiRtr.HandleFunc("/api/v1/spire/bundle", s.bundleGet).Methods(http.MethodGet, http.MethodOptions)
 	apiRtr.HandleFunc("/api/v1/spire/federations/bundles", s.federatedBundleList).Methods(http.MethodGet, http.MethodOptions)
 	apiRtr.HandleFunc("/api/v1/spire/federations/bundles", s.federatedBundleCreate).Methods(http.MethodPost)
 	apiRtr.HandleFunc("/api/v1/spire/federations/bundles", s.federatedBundleUpdate).Methods(http.MethodPatch)
 	apiRtr.HandleFunc("/api/v1/spire/federations/bundles", s.federatedBundleDelete).Methods(http.MethodDelete)
+	
+	// SPIRE server federations
 	apiRtr.HandleFunc("/api/v1/spire/federations", s.federationList).Methods(http.MethodGet, http.MethodOptions)
 	apiRtr.HandleFunc("/api/v1/spire/federations", s.federationCreate).Methods(http.MethodPost)
 	apiRtr.HandleFunc("/api/v1/spire/federations", s.federationUpdate).Methods(http.MethodPatch)
