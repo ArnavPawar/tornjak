@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 
-	backoff "github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v4"
+	"github.com/google/uuid" // Add this line for UUID generation
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
-
 	"github.com/spiffe/tornjak/pkg/agent/types"
 )
 
@@ -17,12 +17,11 @@ const (
 	// agent table with fields spiffeid and plugin
 	initAgentsTable = `CREATE TABLE IF NOT EXISTS agents 
                             (id INTEGER PRIMARY KEY AUTOINCREMENT, spiffeid TEXT, plugin TEXT, UNIQUE (spiffeid))`
-	// cluster table with fields name, domainName, platformtype, managedby
+	// cluster table with fields uid, name, domainName, platformtype, managedby
 	initClustersTable = `CREATE TABLE IF NOT EXISTS clusters 
-                            (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, created_at TEXT, 
+                            (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT UNIQUE, name TEXT, created_at TEXT, 
                             domain_name TEXT, platform_type TEXT, managed_by TEXT, UNIQUE (name))`
 	// cluster - agent relation table specifying by clusterid and spiffeid
-	//                                enforces uniqueness of spiffeid
 	initClusterMemberTable = `CREATE TABLE IF NOT EXISTS cluster_memberships 
                             (id INTEGER PRIMARY KEY AUTOINCREMENT, agent_id int, cluster_id int,
                             FOREIGN KEY (agent_id) REFERENCES agents(id), 
@@ -410,4 +409,82 @@ func (db *LocalSqliteDb) DeleteClusterEntry(clustername string) error {
 		return db.deleteClusterEntryOp(clustername)
 	}
 	return db.retryOp(operation)
+}
+
+func (db *LocalSqliteDb) createClusterEntryOp(cinfo types.ClusterInfo) error {
+	// Generate a new UUID for the cluster UID
+	clusterUID := uuid.New().String()
+
+	// BEGIN transaction
+	ctx := context.Background()
+	tx, err := db.database.BeginTx(ctx, nil)
+	if err != nil {
+		return errors.Errorf("Error initializing context: %v", err)
+	}
+	txHelper := getTornjakTxHelper(ctx, tx)
+
+	// Modify insertClusterMetadata to include UID
+	cinfo.UID = clusterUID
+	err = txHelper.insertClusterMetadata(cinfo)
+	if err != nil {
+		return backoff.Permanent(txHelper.rollbackHandler(err))
+	}
+
+	// ADD agents to cluster
+	err = txHelper.addAgentBatchToCluster(cinfo.Name, cinfo.AgentsList)
+	if err != nil {
+		return backoff.Permanent(txHelper.rollbackHandler(err))
+	}
+	return tx.Commit()
+}
+
+// Modify GetClusters to include UID in the select statement
+func (db *LocalSqliteDb) GetClusters() (types.ClusterInfoList, error) {
+	cmd := `SELECT clusters.uid, clusters.name, clusters.created_at, clusters.domain_name, clusters.managed_by, 
+          clusters.platform_type, GROUP_CONCAT(agents.spiffeid) 
+          FROM clusters 
+          LEFT JOIN cluster_memberships ON clusters.id=cluster_memberships.cluster_id
+          LEFT JOIN agents ON cluster_memberships.agent_id=agents.id
+          GROUP BY clusters.name`
+
+	rows, err := db.database.Query(cmd)
+	if err != nil {
+		return types.ClusterInfoList{}, SQLError{cmd, err}
+	}
+
+	sinfos := []types.ClusterInfo{}
+	var (
+		uid                 string
+		name                string
+		createdAt           string
+		domainName          string
+		managedBy           string
+		platformType        string
+		agentsListConcatted sql.NullString
+		agentsList          []string
+	)
+	for rows.Next() {
+		if err = rows.Scan(&uid, &name, &createdAt, &domainName, &managedBy, &platformType, &agentsListConcatted); err != nil {
+			return types.ClusterInfoList{}, SQLError{cmd, err}
+		}
+
+		if agentsListConcatted.Valid {
+			agentsList = strings.Split(agentsListConcatted.String, ",")
+		} else {
+			agentsList = []string{}
+		}
+		sinfos = append(sinfos, types.ClusterInfo{
+			UID:          uid,
+			Name:         name,
+			CreationTime: createdAt,
+			DomainName:   domainName,
+			ManagedBy:    managedBy,
+			PlatformType: platformType,
+			AgentsList:   agentsList,
+		})
+	}
+
+	return types.ClusterInfoList{
+		Clusters: sinfos,
+	}, nil
 }
