@@ -343,7 +343,7 @@ class ClusterCreate extends Component<ClusterCreateProp, ClusterCreateState> {
               </div>
               <div className="agents-multiselect" data-test="agents-multiselect">
                 <FilterableMultiSelect
-                  titleText="Assign Agents To Cluster"
+                  titleText="Assign Agents To Cluster ASDASDASD"
                   helperText="i.e. spiffe://example.org/agent/myagent1..."
                   placeholder={this.state.agentsListDisplay}
                   id="selectors-multiselect"

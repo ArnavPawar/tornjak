@@ -77,7 +77,7 @@ exports[`Cluster Create Component Should Render 1`] = `
             invalidText="A valid value is required - refer to helper text below"
             labelText="Cluster Domain Name/ URL"
             onChange={[Function]}
-            placeholder="Enter CLUSTER DOMAIN NAME/ URL"
+            placeholder="Enter CLUSTER DOMAIN NAME/ URL ASDASDASDASD"
           />
         </div>
         <div
@@ -120,7 +120,7 @@ exports[`Cluster Create Component Should Render 1`] = `
             placeholder="Select Agents"
             selectionFeedback="top-after-reopen"
             sortItems={[Function]}
-            titleText="Assign Agents To Cluster"
+            titleText="Assign Agents To Cluster ASDASD"
           />
         </div>
         <div

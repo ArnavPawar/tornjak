@@ -25,6 +25,7 @@ ENTRYPOINT ["/opt/tornjak/run_backend.sh"]
 
 # Add init
 COPY scripts/run_backend.sh run_backend.sh
+RUN dos2unix run_backend.sh
 COPY --from=builder /usr/src/myapp/bin/tornjak-backend tornjak-backend
 
 # add a version link to the image description
